@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WalkWin - Yürü Kazan</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        tg: {
+                            bg: 'var(--tg-theme-bg-color, #ffffff)',
+                            text: 'var(--tg-theme-text-color, #000000)',
+                            hint: 'var(--tg-theme-hint-color, #999999)',
+                            link: 'var(--tg-theme-link-color, #2481cc)',
+                            button: 'var(--tg-theme-button-color, #5D5CDE)',
+                            buttonText: 'var(--tg-theme-button-text-color, #ffffff)',
+                            secondary: 'var(--tg-theme-secondary-bg-color, #f3f3f3)'
+                        },
+                        primary: '#5D5CDE',
+                        accent: '#4CAF50'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Adım animasyonu */
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .step-bounce {
+            animation: bounce 1s infinite;
+        }
+        
+        /* Progress ring */
+        .progress-ring {
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+            transition: stroke-dashoffset 0.5s ease;
+        }
+        
+        /* Tab içerik */
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* Token animasyonu */
+        @keyframes token-float {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-50px) scale(1.2); opacity: 0; }
+        }
+        
+        .token-float {
+            animation: token-float 1s ease-out forwards;
+        }
+        
+        body {
+            background-color: var(--tg-theme-bg-color, #ffffff);
+            color: var(--tg-theme-text-color, #000000);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        
+        input, select, textarea {
+            background-color: var(--tg-theme-secondary-bg-color, #f3f3f3);
+            color: var(--tg-theme-text-color, #000000);
+            border: 1px solid var(--tg-theme-hint-color, #999999);
+        }
+        
+        .tg-button {
+            background-color: var(--tg-theme-button-color, #5D5CDE);
+            color: var(--tg-theme-button-text-color, #ffffff);
+        }
+    </style>
+</head>
+<body class="bg-tg-bg text-tg-text min-h-screen">
+    <!-- Header -->
+    <header class="sticky top-0 bg-tg-bg z-10 shadow-sm border-b border-gray-200">
+        <div class="container mx-auto p-4 flex justify-between items-center">
+            <div class="flex items-center">
+                <span class="text-xl font-bold text-primary">
+                    WalkWin
+                </span>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="flex items-center bg-tg-secondary px-3 py-1 rounded-full">
+                    <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTIgMkM2LjQ4IDIgMiA2LjQ4IDIgMTJDMiAxNy41MiA2LjQ4IDIyIDEyIDIyQzE3LjUyIDIyIDIyIDE3LjUyIDIyIDEyQzIyIDYuNDggMTcuNTIgMiAxMiAyWk0xMiAyMEM3LjU4IDIwIDQgMTYuNDIgNCAxMkM0IDcuNTggNy41OCA0IDEyIDRDMTYuNDIgNCAxOCA3LjU4IDE4IDEyQzE4IDE2LjQyIDE2LjQyIDIwIDEyIDIwWiIgZmlsbD0iIzVENUNERSIvPjxwYXRoIGQ9Ik0xMiA2QzEwLjkgNiAxMCA2LjkgMTAgOEMxMCA5LjEgMTAuOSAxMCAxMiAxMEMxMy4xIDEwIDE0IDkuMSAxNCA4QzE0IDYuOSAxMy4xIDYgMTIgNloiIGZpbGw9IiM1RDVDREUiLz48cGF0aCBkPSJNMTIgMTJDMTAuMzUgMTIgOSAxMi45IDkgMTRWMThIMTVWMTRDMTUgMTIuOSAxMy42NSAxMiAxMiAxMloiIGZpbGw9IiM1RDVDREUiLz48L3N2Zz4=" alt="WW" class="w-5 h-5 mr-1" />
+                    <span class="font-bold" id="tokenCount">0</span>
+                    <span class="ml-1 text-xs text-gray-500">WW</span>
+                </div>
+                <div class="text-sm font-medium">Lvl <span id="userLevel">1</span></div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto p-4 pb-20">
+        <!-- Home Tab -->
+        <div id="homeTab" class="tab-content active">
+            <!-- Step Counter Card -->
+            <div class="bg-white rounded-xl shadow-md mb-6 p-6 text-center">
+                <div class="relative mx-auto w-64 h-64 flex items-center justify-center">
+                    <!-- Progress Ring -->
+                    <svg class="absolute" width="240" height="240">
+                        <circle cx="120" cy="120" r="100" fill="none" stroke="#e6e6e6" stroke-width="12" />
+                        <circle id="stepProgressRing" class="progress-ring" cx="120" cy="120" r="100" fill="none" stroke="#5D5CDE" stroke-width="12" stroke-dasharray="628" stroke-dashoffset="628" />
+                    </svg>
+                    
+                    <!-- Step Counter -->
+                    <div class="relative z-10 flex flex-col items-center">
+                        <div id="stepCounter" class="text-4xl font-bold">0</div>
+                        <div class="text-gray-500 text-sm">Günlük Adımlar</div>
+                        <div class="flex items-center mt-2 text-sm">
+                            <span class="text-accent font-medium">Hedef: </span>
+                            <span id="stepGoal" class="ml-1">10,000</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="flex justify-center mt-4 space-x-4">
+                    <button id="updateStepsBtn" class="tg-button py-2 px-4 rounded-full flex items-center">
+                        <i class="fas fa-plus-circle mr-2"></i>
+                        <span>Adımları Güncelle</span>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <div class="bg-white rounded-xl shadow-sm p-4">
+                    <div class="text-gray-500 text-sm mb-1">Bugün Kazanılan</div>
+                    <div class="flex items-center">
+                        <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTIgMkM2LjQ4IDIgMiA2LjQ4IDIgMTJDMiAxNy41MiA2LjQ4IDIyIDEyIDIyQzE3LjUyIDIyIDIyIDE3LjUyIDIyIDEyQzIyIDYuNDggMTcuNTIgMiAxMiAyWk0xMiAyMEM3LjU4IDIwIDQgMTYuNDIgNCAxMkM0IDcuNTggNy41OCA0IDEyIDRDMTYuNDIgNCAxOCA3LjU4IDE4IDEyQzE4IDE2LjQyIDE2LjQyIDIwIDEyIDIwWiIgZmlsbD0iIzVENUNERSIvPjxwYXRoIGQ9Ik0xMiA2QzEwLjkgNiAxMCA2LjkgMTAgOEMxMCA5LjEgMTAuOSAxMCAxMiAxMEMxMy4xIDEwIDE0IDkuMSAxNCA4QzE0IDYuOSAxMy4xIDYgMTIgNloiIGZpbGw9IiM1RDVDREUiLz48cGF0aCBkPSJNMTIgMTJDMTAuMzUgMTIgOSAxMi45IDkgMTRWMThIMTVWMTRDMTUgMTIuOSAxMy42NSAxMiAxMiAxMloiIGZpbGw9IiM1RDVDREUiLz48L3N2Zz4=" alt="WW" class="w-5 h-5 mr-1" />
+                        <div id="todayTokens" class="text-xl font-bold">0</div>
+                        <span class="ml-1 text-xs text-gray-500">WW</span>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm p-4">
+                    <div class="text-gray-500 text-sm mb-1">Kalori</div>
+                    <div class="flex items-center">
+                        <i class="fas fa-fire text-orange-500 mr-1"></i>
+                        <div id="caloriesBurned" class="text-xl font-bold">0</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Daily Goals -->
+            <div class="bg-white rounded-xl shadow-md mb-6 p-4">
+                <h3 class="text-lg font-semibold mb-2">Günlük Hedefler</h3>
+                <div class="space-y-4">
+                    <div>
+                        <div class="flex justify-between text-sm mb-1">
+                            <span>10,000 adım tamamla</span>
+                            <span id="stepGoalProgress">0/10,000</span>
+                        </div>
+                        <div class="bg-gray-200 rounded-full h-2">
+                            <div id="stepGoalBar" class="bg-primary h-2 rounded-full" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-sm mb-1">
+                            <span>30 dakika aktif ol</span>
+                            <span>0/30 dk</span>
+                        </div>
+                        <div class="bg-gray-200 rounded-full h-2">
+                            <div class="bg-primary h-2 rounded-full" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-sm mb-1">
+                            <span>5 km yürü</span>
+                            <span>0/5 km</span>
+                        </div>
+                        <div class="bg-gray-200 rounded-full h-2">
+                            <div class="bg-primary h-2 rounded-full" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Recent Activity -->
+            <div class="bg-white rounded-xl shadow-md p-4">
+                <h3 class="text-lg font-semibold mb-2">Son Aktiviteler</h3>
+                <ul id="activityList" class="divide-y divide-gray-200">
+                    <li class="py-3 flex justify-between items-center">
+                        <div class="flex items-center">
+                            <div class="bg-accent/10 text-accent p-2 rounded-full mr-3">
+                                <i class="fas fa-shoe-prints"></i>
+                            </div>
+                            <div>
+                                <div class="font-medium">Adımlarını güncelledin</div>
+                                <div class="text-sm text-gray-500">Bugün, 09:15</div>
+                            </div>
+                        </div>
+                        <div class="font-semibold text-accent">+0 WW</div>
+                    </li>
+                    <li class="py-3 flex justify-between items-center">
+                        <div class="flex items-center">
+                            <div class="bg-primary/10 text-primary p-2 rounded-full mr-3">
+                                <i class="fas fa-star"></i>
+                            </div>
+                            <div>
+                                <div class="font-medium">Uygulamaya hoş geldin!</div>
+                                <div class="text-sm text-gray-500">Bugün, 09:00</div>
+                            </div>
+                        </div>
+                        <div class="font-semibold text-accent">+5 WW</div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Challenges Tab -->
+        <div id="challengesTab" class="tab-content">
+            <h2 class="text-xl font-bold mb-4">Görevler & Mücadeleler</h2>
+            
+            <!-- Daily Challenges -->
+            <div class="bg-white rounded-xl shadow-md mb-6 p-4">
+                <h3 class="text-lg font-semibold mb-2">Günlük Görevler</h3>
+                <ul class="divide-y divide-gray-200">
+                    <li class="py-3">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h4 class="font-medium">Sabah Yürüyüşü</h4>
+                                <p class="text-sm text-gray-500">Sabah 7-9 arası 1000 adım at</p>
+                            </div>
+                            <div class="flex items-center">
+                                <span class="mr-2 text-sm font-bold text-accent">+10 WW</span>
+                                <button class="bg-gray-200 text-gray-600 px-3 py-1 rounded-lg text-sm">Tamamla</button>
+                            </div>
+                        </div>
+                        <div class="mt-1 w-full bg-gray-200 rounded-full h-1.5">
+                            <div class="bg-primary h-1.5 rounded-full" style="width: 0%"></div>
+                        </div>
+                    </li>
+                    <li class="py-3">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h4 class="font-medium">Öğle Arası Egzersiz</h4>
+                                <p class="text-sm text-gray-500">12-14 arası 2000 adım at</p>
+                            </div>
+                            <div class="flex items-center">
+                                <span class="mr-2 text-sm font-bold text-accent">+15 WW</span>
+                                <button class="bg-gray-200 text-gray-600 px-3 py-1 rounded-lg text-sm">Tamamla</button>
+                            </div>
+                        </div>
+                        <div class="mt-1 w-full bg-gray-200 rounded-full h-1.5">
+                            <div class="bg-primary h-1.5 rounded-full" style="width: 0%"></div>
+                        </div>
+                    </li>
+                    <li class="py-3">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h4 class="font-medium">Akşam Yürüyüşü</h4>
+                                <p class="text-sm text-gray-500">18-20 arası 1500 adım at</p>
+                            </div>
+                            <div class="flex items-center">
+                                <span class="mr-2 text-sm font-bold text-accent">+12 WW</span>
+                                <button class="bg-gray-200 text-gray-600 px-3 py-1 rounded-lg text-sm">Tamamla</button>
+                            </div>
+                        </div>
+                        <div class="mt-1 w-full bg-gray-200 rounded-full h-1.5">
+                            <div class="bg-primary h-1.5 rounded-full" style="width: 0%"></div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- Weekly Challenges -->
+            <div class="bg-white rounded-xl shadow-md mb-6 p-4">
+                <h3 class="text-lg font-semibold mb-2">Haftalık Mücadeleler</h3>
+                <ul class="divide-y divide-gray-200">
+                    <li class="py-3">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h4 class="font-medium">Adım Üstadı</h4>
+                                <p class="text-sm text-gray-500">Bir haftada 70,000 adım at</p>
+                            </div>
+                            <div class="text-sm text-gray-500">0/70,000</div>
+                        </div>
+                        <div class="mt-1 w-full bg-gray-200 rounded-full h-1.5">
+                            <div class="bg-primary h-1.5 rounded-full" style="width: 0%"></div>
+                        </div>
+                    </li>
+                    <li class="py-3">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h4 class="font-medium">Düzenli Yürüyüşçü</h4>
+                                <p class="text-sm text-gray-500">7 gün üst üste 5000+ adım at</p>
+                            </div>
+                            <div class="text-sm text-gray-500">0/7 gün</div>
+                        </div>
+                        <div class="mt-1 w-full bg-gray-200 rounded-full h-1.5">
+                            <div class="bg-primary h-1.5 rounded-full" style="width: 0%"></div>
+                        </div>
+                        <div class="flex mt-2 space-x-1">
+                            <div class="w-4 h-4 rounded-full bg-gray-300"></div>
+                            <div class="w-4 h-4 rounded-full bg-gray-300"></div>
+                            <div class="w-4 h-4 rounded-full bg-gray-300"></div>
+                            <div class="w-4 h-4 rounded-full bg-gray-300"></div>
+                            <div class="w-4 h-4 rounded-full bg-gray-300"></div>
+                            <div class="w-4 h-4 rounded-full bg-gray-300"></div>
+                            <div class="w-4 h-4 rounded-full bg-gray-300"></div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- Group Challenges -->
+            <div class="bg-white rounded-xl shadow-md p-4">
+                <h3 class="text-lg font-semibold mb-2">Grup Mücadeleleri</h3>
+                <div class="text-center py-4">
+                    <div class="text-5xl text-gray-300 mb-2">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <p class="text-gray-500">Henüz bir grup mücadelesine katılmadın</p>
+                    <button class="mt-3 bg-primary text-white px-4 py-2 rounded-lg text-sm">
+                        Mücadelelere Katıl
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Leaderboard Tab -->
+        <div id="leaderboardTab" class="tab-content">
+            <h2 class="text-xl font-bold mb-4">Liderlik Tablosu</h2>
+            
+            <!-- Leaderboard Type Selector -->
+            <div class="flex space-x-2 mb-6">
+                <button class="flex-1 bg-primary text-white rounded-lg py-2 text-sm font-medium">Günlük</button>
+                <button class="flex-1 bg-gray-200 text-gray-700 rounded-lg py-2 text-sm font-medium">Haftalık</button>
+                <button class="flex-1 bg-gray-200 text-gray-700 rounded-lg py-2 text-sm font-medium">Aylık</button>
+            </div>
+            
+            <!-- Top 3 Users -->
+            <div class="flex justify-center items-end mb-10">
+                <!-- 2nd Place -->
+                <div class="text-center mx-2">
+                    <div class="relative">
+                        <div class="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-gray-200 text-gray-800 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">2</div>
+                        <div class="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-2">
+                            <i class="fas fa-user text-gray-500 text-xl"></i>
+                        </div>
+                    </div>
+                    <p class="text-sm font-medium">Ahmet K.</p>
+                    <p class="text-xs text-gray-500">15,423 adım</p>
+                </div>
+                
+                <!-- 1st Place -->
+                <div class="text-center mx-2 -mb-4">
+                    <div class="relative">
+                        <div class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-yellow-400 text-yellow-800 rounded-full w-8 h-8 flex items-center justify-center text-lg font-bold">1</div>
+                        <div class="w-20 h-20 bg-primary/20 rounded-full flex items-center justify-center mb-2 border-2 border-primary">
+                            <i class="fas fa-crown text-yellow-500 text-xl"></i>
+                        </div>
+                    </div>
+                    <p class="text-sm font-medium">Ayşe Y.</p>
+                    <p class="text-xs text-gray-500">21,840 adım</p>
+                </div>
+                
+                <!-- 3rd Place -->
+                <div class="text-center mx-2">
+                    <div class="relative">
+                        <div class="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-amber-700 text-amber-100 rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">3</div>
+                        <div class="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-2">
+                            <i class="fas fa-user text-gray-500 text-xl"></i>
+                        </div>
+                    </div>
+                    <p class="text-sm font-medium">Mehmet T.</p>
+                    <p class="text-xs text-gray-500">12,205 adım</p>
+                </div>
+            </div>
+            
+            <!-- Leaderboard List -->
+            <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                <ul class="divide-y divide-gray-200">
+                    <li class="p-4 flex items-center">
+                        <div class="w-6 text-center font-bold">4</div>
+                        <div class="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center mx-4">
+                            <i class="fas fa-user text-gray-500"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="font-medium">Zeynep K.</p>
+                            <p class="text-xs text-gray-500">Seviye 12</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-bold">10,840 adım</p>
+                            <p class="text-xs text-gray-500">+120 WW</p>
+                        </div>
+                    </li>
+                    <li class="p-4 flex items-center">
+                        <div class="w-6 text-center font-bold">5</div>
+                        <div class="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center mx-4">
+                            <i class="fas fa-user text-gray-500"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="font-medium">Ali R.</p>
+                            <p class="text-xs text-gray-500">Seviye 8</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-bold">9,320 adım</p>
+                            <p class="text-xs text-gray-500">+90 WW</p>
+                        </div>
+                    </li>
+                    <li class="p-4 flex items-center bg-primary/10">
+                        <div class="w-6 text-center font-bold">28</div>
+                        <div class="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center mx-4 border border-primary">
+                            <i class="fas fa-user text-primary"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="font-medium">Sen</p>
+                            <p class="text-xs text-gray-500">Seviye 1</p>
+                        </div>
+                        <div class="text-right">
+                            <p id="userStepsInLeaderboard" class="font-bold">0 adım</p>
+                            <p class="text-xs text-gray-500">+0 WW</p>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Profile Tab -->
+        <div id="profileTab" class="tab-content">
+            <h2 class="text-xl font-bold mb-4">Profil</h2>
+            
+            <!-- User Profile Card -->
+            <div class="bg-white rounded-xl shadow-md mb-6 p-4">
+                <div class="flex items-center mb-4">
+                    <div class="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mr-4 border-2 border-primary">
+                        <i class="fas fa-user text-primary text-xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold" id="userName">Kullanıcı</h3>
+                        <div class="flex items-center">
+                            <div class="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full mr-2">
+                                Seviye <span id="profileLevel">1</span>
+                            </div>
+                            <div class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                                Yeni Başlayan
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Level Progress -->
+                <div class="mb-4">
+                    <div class="flex justify-between text-sm mb-1">
+                        <span>Seviye İlerlemesi</span>
+                        <span><span id="levelProgress">0</span>/100 XP</span>
+                    </div>
+                    <div class="bg-gray-200 rounded-full h-2">
+                        <div id="levelProgressBar" class="bg-primary h-2 rounded-full" style="width: 0%"></div>
+                    </div>
+                    <div class="flex justify-between text-xs text-gray-500 mt-1">
+                        <span>Seviye 1</span>
+                        <span>Seviye 2</span>
+                    </div>
+                </div>
+                
+                <!-- Stats -->
+                <div class="grid grid-cols-3 gap-3 mb-4">
+                    <div class="bg-gray-100 p-2 rounded-lg text-center">
+                        <div class="text-xl font-bold text-primary" id="totalStepsCount">0</div>
+                        <div class="text-xs text-gray-600">Toplam Adım</div>
+                    </div>
+                    <div class="bg-gray-100 p-2 rounded-lg text-center">
+                        <div class="text-xl font-bold text-primary" id="totalDaysCount">1</div>
+                        <div class="text-xs text-gray-600">Aktif Günler</div>
+                    </div>
+                    <div class="bg-gray-100 p-2 rounded-lg text-center">
+                        <div class="text-xl font-bold text-primary" id="totalTokensCount">5</div>
+                        <div class="text-xs text-gray-600">Toplam WW</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Achievements -->
+            <div class="bg-white rounded-xl shadow-md mb-6 p-4">
+                <h3 class="text-lg font-semibold mb-3">Rozetler</h3>
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="text-center">
+                        <div class="w-14 h-14 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-1">
+                            <i class="fas fa-shoe-prints text-primary"></i>
+                        </div>
+                        <div class="text-xs">İlk Adım</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="w-14 h-14 rounded-full bg-gray-200 flex items-center justify-center mx-auto mb-1">
+                            <i class="fas fa-medal text-gray-400"></i>
+                        </div>
+                        <div class="text-xs">10K Adım</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="w-14 h-14 rounded-full bg-gray-200 flex items-center justify-center mx-auto mb-1">
+                            <i class="fas fa-fire text-gray-400"></i>
+                        </div>
+                        <div class="text-xs">7 Gün Serisi</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="w-14 h-14 rounded-full bg-gray-200 flex items-center justify-center mx-auto mb-1">
+                            <i class="fas fa-route text-gray-400"></i>
+                        </div>
+                        <div class="text-xs">100 Km</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="w-14 h-14 rounded-full bg-gray-200 flex items-center justify-center mx-auto mb-1">
+                            <i class="fas fa-trophy text-gray-400"></i>
+                        </div>
+                        <div class="text-xs">İlk 10</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="w-14 h-14 rounded-full bg-gray-200 flex items-center justify-center mx-auto mb-1">
+                            <i class="fas fa-star text-gray-400"></i>
+                        </div>
+                        <div class="text-xs">100 WW</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Settings -->
+            <div class="bg-white rounded-xl shadow-md p-4">
+                <h3 class="text-lg font-semibold mb-3">Ayarlar</h3>
+                <ul class="divide-y divide-gray-200">
+                    <li class="py-3 flex justify-between items-center">
+                        <div class="flex items-center">
+                            <i class="fas fa-bell text-gray-500 mr-3"></i>
+                            <span>Bildirimler</span>
+                        </div>
+                        <div class="relative inline-block w-10 mr-2 align-middle select-none">
+                            <input type="checkbox" name="toggle" id="notificationToggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
+                            <label for="notificationToggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                        </div>
+                    </li>
+                    <li class="py-3 flex justify-between items-center">
+                        <div class="flex items-center">
+                            <i class="fas fa-volume-up text-gray-500 mr-3"></i>
+                            <span>Ses Efektleri</span>
+                        </div>
+                        <div class="relative inline-block w-10 mr-2 align-middle select-none">
+                            <input type="checkbox" name="toggle" id="soundToggle" checked class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
+                            <label for="soundToggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                        </div>
+                    </li>
+                    <li class="py-3">
+                        <div class="flex items-center">
+                            <i class="fas fa-info-circle text-gray-500 mr-3"></i>
+                            <span>Uygulama Hakkında</span>
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1">Versiyon 1.0.0 | WalkWin</div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </main>
+    
+    <!-- Bottom Navigation -->
+    <nav class="bg-white shadow-lg fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200">
+        <div class="grid grid-cols-4 h-16">
+            <button class="tab-btn flex flex-col items-center justify-center text-primary" data-tab="homeTab">
+                <i class="fas fa-home text-xl"></i>
+                <span class="text-xs mt-1">Ana Sayfa</span>
+            </button>
+            <button class="tab-btn flex flex-col items-center justify-center text-gray-500" data-tab="challengesTab">
+                <i class="fas fa-tasks text-xl"></i>
+                <span class="text-xs mt-1">Görevler</span>
+            </button>
+            <button class="tab-btn flex flex-col items-center justify-center text-gray-500" data-tab="leaderboardTab">
+                <i class="fas fa-trophy text-xl"></i>
+                <span class="text-xs mt-1">Sıralama</span>
+            </button>
+            <button class="tab-btn flex flex-col items-center justify-center text-gray-500" data-tab="profileTab">
+                <i class="fas fa-user text-xl"></i>
+                <span class="text-xs mt-1">Profil</span>
+            </button>
+        </div>
+    </nav>
+    
+    <!-- Step Update Modal -->
+    <div id="updateStepsModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-xl p-6 max-w-sm w-full mx-4">
+            <h3 class="text-xl font-bold mb-4">Adımlarını Güncelle</h3>
+            <p class="text-gray-600 mb-4">Telefonunun sağlık uygulamasından günlük adım sayını kontrol et ve aşağıya gir.</p>
+            
+            <div class="mb-4">
+                <label for="stepInput" class="block text-sm font-medium text-gray-700 mb-1">Adım Sayısı</label>
+                <input type="number" id="stepInput" class="w-full px-4 py-2 border border-gray-300 rounded-lg text-lg" placeholder="Örn: 8500">
+            </div>
+            
+            <div class="flex space-x-3">
+                <button id="cancelUpdateBtn" class="flex-1 bg-gray-200 text-gray-800 py-2 rounded-lg">İptal</button>
+                <button id="confirmUpdateBtn" class="flex-1 bg-primary text-white py-2 rounded-lg">Güncelle</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Level Up Modal -->
+    <div id="levelUpModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-xl p-6 max-w-sm w-full mx-4 text-center">
+            <div class="text-primary text-5xl mb-4">
+                <i class="fas fa-award"></i>
+            </div>
+            <h3 class="text-xl font-bold mb-2">Tebrikler!</h3>
+            <p class="mb-4">Seviye <span id="newLevelNum">2</span> oldun.</p>
+            <p class="text-sm text-gray-600 mb-4">Yeni seviye bonusu: <span class="font-bold text-primary">+10 WW</span></p>
+            <button id="closeLevelUpBtn" class="bg-primary text-white py-2 px-8 rounded-lg">
+                Harika!
+            </button>
+        </div>
+    </div>
+    
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 transform translate-x-full transition-transform duration-300">
+        <div class="flex items-center">
+            <i class="fas fa-check-circle mr-2"></i>
+            <span id="toastMessage">İşlem başarılı!</span>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Telegram Web App entegrasyonu
+            const tg = window.Telegram?.WebApp;
+            if (tg) {
+                tg.ready();
+                tg.expand();
+                
+                // Kullanıcı bilgilerini alma
+                if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+                    const user = tg.initDataUnsafe.user;
+                    document.getElementById('userName').textContent = user.first_name;
+                }
+            }
+            
+            // Uygulama durum değişkenleri
+            let tokens = 5; // Başlangıç token miktarı
+            let steps = 0; // Günlük adım sayısı
+            let dailyGoal = 10000; // Günlük adım hedefi
+            let level = 1; // Kullanıcı seviyesi
+            let levelXP = 0; // Seviye XP'si
+            let xpToNextLevel = 100; // Bir sonraki seviye için gereken XP
+            let lastUpdateTime = new Date(); // Son güncelleme zamanı
+            let totalSteps = 0; // Toplam adım sayısı
+            let todayTokens = 0; // Bugün kazanılan tokenler
+            
+            // DOM elementleri
+            const tokenCountEl = document.getElementById('tokenCount');
+            const stepCounterEl = document.getElementById('stepCounter');
+            const stepGoalEl = document.getElementById('stepGoal');
+            const stepGoalProgressEl = document.getElementById('stepGoalProgress');
+            const stepGoalBarEl = document.getElementById('stepGoalBar');
+            const updateStepsBtn = document.getElementById('updateStepsBtn');
+            const updateStepsModal = document.getElementById('updateStepsModal');
+            const stepInput = document.getElementById('stepInput');
+            const confirmUpdateBtn = document.getElementById('confirmUpdateBtn');
+            const cancelUpdateBtn = document.getElementById('cancelUpdateBtn');
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            const tabContents = document.querySelectorAll('.tab-content');
+            const levelUpModalEl = document.getElementById('levelUpModal');
+            const newLevelNumEl = document.getElementById('newLevelNum');
+            const closeLevelUpBtn = document.getElementById('closeLevelUpBtn');
+            const toastEl = document.getElementById('toast');
+            const toastMessageEl = document.getElementById('toastMessage');
+            const todayTokensEl = document.getElementById('todayTokens');
+            const caloriesBurnedEl = document.getElementById('caloriesBurned');
+            const levelEl = document.getElementById('userLevel');
+            const profileLevelEl = document.getElementById('profileLevel');
+            const levelProgressEl = document.getElementById('levelProgress');
+            const levelProgressBarEl = document.getElementById('levelProgressBar');
+            const totalStepsCountEl = document.getElementById('totalStepsCount');
+            const totalTokensCountEl = document.getElementById('totalTokensCount');
+            const userStepsInLeaderboardEl = document.getElementById('userStepsInLeaderboard');
+            const activityListEl = document.getElementById('activityList');
+            const stepProgressRingEl = document.getElementById('stepProgressRing');
+            
+            // Token miktarını güncelleme
+            const updateTokenDisplay = () => {
+                tokenCountEl.textContent = tokens;
+                todayTokensEl.textContent = todayTokens;
+                totalTokensCountEl.textContent = tokens;
+            };
+            
+            // Adım hedefini güncelleme
+            const updateStepGoalDisplay = () => {
+                stepGoalEl.textContent = dailyGoal.toLocaleString();
+                stepGoalProgressEl.textContent = `${steps.toLocaleString()}/${dailyGoal.toLocaleString()}`;
+                
+                const percentage = Math.min((steps / dailyGoal) * 100, 100);
+                stepGoalBarEl.style.width = `${percentage}%`;
+                
+                // İlerleme halkasını güncelle
+                const circumference = 2 * Math.PI * 100;
+                const offset = circumference - (steps / dailyGoal) * circumference;
+                stepProgressRingEl.style.strokeDasharray = circumference;
+                stepProgressRingEl.style.strokeDashoffset = offset > 0 ? offset : 0;
+                
+                // Liderlik tablosundaki adım sayısını güncelle
+                userStepsInLeaderboardEl.textContent = `${steps.toLocaleString()} adım`;
+            };
+            
+            // Seviye ilerleme çubuğunu güncelleme
+            const updateLevelProgress = () => {
+                levelEl.textContent = level;
+                profileLevelEl.textContent = level;
+                levelProgressEl.textContent = levelXP;
+                const percentage = (levelXP / xpToNextLevel) * 100;
+                levelProgressBarEl.style.width = `${percentage}%`;
+            };
+            
+            // Kalori hesaplama (yaklaşık değer)
+            const calculateCalories = (steps) => {
+                // Ortalama olarak 1000 adım yaklaşık 40 kalori yakar
+                return Math.floor(steps * 0.04);
+            };
+            
+            // Adımlar için token hesaplama
+            const calculateTokensForSteps = (stepCount) => {
+                // Her 1000 adım için 1 token
+                return Math.floor(stepCount / 1000);
+            };
+            
+            // XP ekleme ve seviye atlama kontrolü
+            const addXP = (amount) => {
+                levelXP += amount;
+                
+                if (levelXP >= xpToNextLevel) {
+                    // Seviye atla
+                    levelXP = levelXP - xpToNextLevel;
+                    level++;
+                    xpToNextLevel = Math.floor(xpToNextLevel * 1.5);
+                    
+                    // Seviye bonusu
+                    const levelBonus = 10;
+                    addTokens(levelBonus);
+                    
+                    // Seviye atladı bildirimi
+                    newLevelNumEl.textContent = level;
+                    levelUpModalEl.classList.remove('hidden');
+                    
+                    // Aktivite ekle
+                    addActivity(`Seviye ${level} oldun!`, levelBonus, 'level');
+                }
+                
+                updateLevelProgress();
+            };
+            
+            // Token ekleme
+            const addTokens = (amount, source = '') => {
+                tokens += amount;
+                todayTokens += amount;
+                updateTokenDisplay();
+                
+                if (source === 'steps') {
+                    // Adımlardan kazanılan token başına 5 XP
+                    addXP(amount * 5);
+                }
+            };
+            
+            // Aktivite ekleme
+            const addActivity = (text, amount, type = 'step') => {
+                const now = new Date();
+                const timeString = `Bugün, ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+                
+                const li = document.createElement('li');
+                li.className = 'py-3 flex justify-between items-center';
+                
+                let iconClass = 'fas fa-shoe-prints';
+                let bgColorClass = 'bg-accent/10';
+                let textColorClass = 'text-accent';
+                
+                if (type === 'level') {
+                    iconClass = 'fas fa-star';
+                    bgColorClass = 'bg-primary/10';
+                    textColorClass = 'text-primary';
+                } else if (type === 'challenge') {
+                    iconClass = 'fas fa-tasks';
+                    bgColorClass = 'bg-purple-500/10';
+                    textColorClass = 'text-purple-500';
+                }
+                
+                li.innerHTML = `
+                    <div class="flex items-center">
+                        <div class="${bgColorClass} ${textColorClass} p-2 rounded-full mr-3">
+                            <i class="${iconClass}"></i>
+                        </div>
+                        <div>
+                            <div class="font-medium">${text}</div>
+                            <div class="text-sm text-gray-500">${timeString}</div>
+                        </div>
+                    </div>
+                    <div class="font-semibold text-accent">+${amount} WW</div>
+                `;
+                
+                activityListEl.insertBefore(li, activityListEl.firstChild);
+                
+                // Maksimum 5 aktivite göster
+                if (activityListEl.children.length > 5) {
+                    activityListEl.removeChild(activityListEl.lastChild);
+                }
+            };
+            
+            // Toast mesajı gösterme
+            const showToast = (message, type = 'success') => {
+                toastMessageEl.textContent = message;
+                
+                if (type === 'success') {
+                    toastEl.className = toastEl.className.replace(/bg-\w+-500/g, 'bg-green-500');
+                } else if (type === 'error') {
+                    toastEl.className = toastEl.className.replace(/bg-\w+-500/g, 'bg-red-500');
+                } else if (type === 'info') {
+                    toastEl.className = toastEl.className.replace(/bg-\w+-500/g, 'bg-blue-500');
+                }
+                
+                toastEl.classList.remove('translate-x-full');
+                
+                setTimeout(() => {
+                    toastEl.classList.add('translate-x-full');
+                }, 3000);
+            };
+            
+            // Adım güncelleme
+            const updateSteps = (newSteps) => {
+                if (newSteps < steps) {
+                    showToast('Adım sayısı mevcut değerden küçük olamaz!', 'error');
+                    return;
+                }
+                
+                const oldSteps = steps;
+                steps = newSteps;
+                totalSteps += (steps - oldSteps);
+                totalStepsCountEl.textContent = totalSteps.toLocaleString();
+                stepCounterEl.textContent = steps.toLocaleString();
+                
+                // Kalori hesapla
+                const calories = calculateCalories(steps);
+                caloriesBurnedEl.textContent = calories.toLocaleString();
+                
+                // Hedef güncelleme
+                updateStepGoalDisplay();
+                
+                // Token hesaplama
+                const oldTokens = calculateTokensForSteps(oldSteps);
+                const newTokens = calculateTokensForSteps(steps);
+                const earnedTokens = newTokens - oldTokens;
+                
+                if (earnedTokens > 0) {
+                    addTokens(earnedTokens, 'steps');
+                    addActivity('Adımlarını güncelledin', earnedTokens, 'step');
+                    showToast(`${earnedTokens} WW token kazandın!`, 'success');
+                } else {
+                    showToast('Adımların güncellendi', 'info');
+                    addActivity('Adımlarını güncelledin', 0, 'step');
+                }
+            };
+            
+            // Tab değiştirme
+            const switchTab = (tabId) => {
+                tabContents.forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                
+                tabBtns.forEach(btn => {
+                    btn.classList.remove('text-primary');
+                    btn.classList.add('text-gray-500');
+                });
+                
+                document.getElementById(tabId).classList.add('active');
+                const activeBtn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
+                activeBtn.classList.remove('text-gray-500');
+                activeBtn.classList.add('text-primary');
+            };
+            
+            // Event Listeners
+            
+            // Adım güncelleme butonu
+            updateStepsBtn.addEventListener('click', () => {
+                updateStepsModal.classList.remove('hidden');
+                stepInput.focus();
+            });
+            
+            // Adım güncelleme iptal
+            cancelUpdateBtn.addEventListener('click', () => {
+                updateStepsModal.classList.add('hidden');
+            });
+            
+            // Adım güncelleme onay
+            confirmUpdateBtn.addEventListener('click', () => {
+                const newSteps = parseInt(stepInput.value, 10);
+                if (isNaN(newSteps) || newSteps < 0) {
+                    showToast('Lütfen geçerli bir adım sayısı girin', 'error');
+                    return;
+                }
+                
+                updateSteps(newSteps);
+                updateStepsModal.classList.add('hidden');
+                stepInput.value = '';
+            });
+            
+            // Modal arka planına tıklayınca kapat
+            updateStepsModal.addEventListener('click', (e) => {
+                if (e.target === updateStepsModal) {
+                    updateStepsModal.classList.add('hidden');
+                }
+            });
+            
+            // Tab butonları
+            tabBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const tabId = btn.getAttribute('data-tab');
+                    switchTab(tabId);
+                });
+            });
+            
+            // Seviye atlama modal kapatma
+            closeLevelUpBtn.addEventListener('click', () => {
+                levelUpModalEl.classList.add('hidden');
+            });
+            
+            // Başlangıç durumu
+            updateTokenDisplay();
+            updateStepGoalDisplay();
+            updateLevelProgress();
+            
+            // Hoş geldin bonusu
+            if (tokens === 5) {
+                addActivity('Uygulamaya hoş geldin!', 5, 'level');
+            }
+        });
+    </script>
+</body>
+</html>
